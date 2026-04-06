@@ -16,5 +16,5 @@ public class AnalyticsResponse {
     private String originalUrl;
     private long totalClicks;
     private LocalDateTime createdAt;
-    private List<LocalDateTime> recentClicks; // Shows the last 5-10 click timestamps
+    private List<LocalDateTime> recentClicks; 
 }
