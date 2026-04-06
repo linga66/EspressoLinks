@@ -68,9 +68,8 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>EspressoLinks</groupId>
-			<artifactId>demo</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 	</dependencies>
 

@@ -48,7 +48,7 @@ public class UrlController {
 
     @GetMapping("/{shortKey}")
     public ResponseEntity<Void> redirect(@PathVariable String shortKey) {
-
+        System.out.println("🚀 Request handled by Instance: " + System.getenv("HOSTNAME"));
         String originalUrl = urlService.getOriginalUrl(shortKey);
 
         return ResponseEntity.status(HttpStatus.FOUND)

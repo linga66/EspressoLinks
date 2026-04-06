@@ -6,6 +6,7 @@ import EspressoLinks.demo.util.Base62Converter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional; // Import this
 
 import java.net.URI;
 import java.time.Duration;
@@ -20,23 +21,18 @@ public class UrlService {
     private final StringRedisTemplate redisTemplate;
     private final AnalyticsService analyticsService;
 
+    @Transactional // Ensures the DB save is committed
     public String createShortUrl(String longUrl) {
-
-        // ✅ Validate URL
         validateUrl(longUrl);
 
-        // ✅ Check duplicate
+        // 1. Check if longUrl already exists in DB
         Optional<UrlMapping> existing = repository.findByLongUrl(longUrl);
         if (existing.isPresent()) {
             return existing.get().getShortKey();
         }
 
-        // ✅ Generate ID from Redis
         Long id = redisTemplate.opsForValue().increment("url_counter");
-
-        if (id == null) {
-            throw new RuntimeException("Failed to generate ID from Redis");
-        }
+        if (id == null) id = 1L;
 
         String shortKey = Base62Converter.encode(id);
 
@@ -46,42 +42,35 @@ public class UrlService {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        repository.save(mapping);
+        // 💡 Use saveAndFlush to force it into the table right now
+        repository.saveAndFlush(mapping);
 
-        // ✅ Cache (longer TTL)
         redisTemplate.opsForValue().set(shortKey, longUrl, Duration.ofDays(7));
 
         return shortKey;
     }
 
     public String getOriginalUrl(String shortKey) {
-
-        String cachedUrl = null;
-
-        // ✅ Try Redis (but DON'T fail if it breaks)
+        // Try Cache first
         try {
-            cachedUrl = redisTemplate.opsForValue().get(shortKey);
-
+            String cachedUrl = redisTemplate.opsForValue().get(shortKey);
             if (cachedUrl != null) {
                 analyticsService.logClick(shortKey);
                 return cachedUrl;
             }
-
         } catch (Exception e) {
-            // ✅ Just log, don't throw
-            System.out.println("Redis unavailable, falling back to DB");
+            System.err.println("Redis unavailable: " + e.getMessage());
         }
 
-        // ✅ DB fallback (always works)
+        // Fallback to DB
         UrlMapping mapping = repository.findByShortKey(shortKey)
-                .orElseThrow(() -> new RuntimeException("URL Not Found"));
+                .orElseThrow(() -> new RuntimeException("URL Not Found: " + shortKey));
 
-        // ✅ Try to cache again (optional, non-critical)
+        // Refill Cache
         try {
-            redisTemplate.opsForValue()
-                    .set(shortKey, mapping.getLongUrl(), Duration.ofDays(7));
+            redisTemplate.opsForValue().set(shortKey, mapping.getLongUrl(), Duration.ofDays(7));
         } catch (Exception e) {
-            System.out.println("Could not write to Redis");
+            // Log error but don't stop execution
         }
 
         analyticsService.logClick(shortKey);
