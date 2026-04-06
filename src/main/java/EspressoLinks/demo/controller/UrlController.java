@@ -29,7 +29,6 @@ public class UrlController {
     public ResponseEntity<?> shorten(@RequestBody UrlRequest request,
                                      HttpServletRequest httpRequest) {
 
-        // ✅ Rate limiting
         if (!bucket.tryConsume(1)) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body("Too many requests!");
