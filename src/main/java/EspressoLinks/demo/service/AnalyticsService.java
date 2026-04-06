@@ -29,18 +29,15 @@ public class AnalyticsService {
     }
 
     public AnalyticsResponse getAnalytics(String shortKey) {
-        // 1. Check if URL exists
         UrlMapping url = urlRepository.findByShortKey(shortKey)
                 .orElseThrow(() -> new UrlNotFoundException("URL not found for key: " + shortKey));
 
-        // 2. Fetch Click Data
         long totalClicks = analyticsRepository.countByShortKey(shortKey);
         List<LocalDateTime> recentTimestamps = analyticsRepository.findTop10ByShortKeyOrderByClickTimestampDesc(shortKey)
                 .stream()
                 .map(ClickAnalytics::getClickTimestamp)
                 .collect(Collectors.toList());
 
-        // 3. Wrap in DTO
         return AnalyticsResponse.builder()
                 .shortKey(shortKey)
                 .originalUrl(url.getLongUrl())
